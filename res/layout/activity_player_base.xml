@@ -30,6 +30,7 @@
             android:layout_alignParentBottom="true"
             android:layout_alignTop="@android:id/progress" />
 
+        <!--header with song and artist info-->
         <LinearLayout
             android:id="@+id/audio_player_header"
             android:layout_width="match_parent"
@@ -98,6 +99,7 @@
             android:layout_alignParentRight="true"
             android:layout_below="@+id/audio_player_header" >
 
+            <!--cover image-->
             <com.andrew.apollo.widgets.SquareImageView
                 android:id="@+id/audio_player_album_art"
                 android:layout_width="match_parent"
@@ -126,6 +128,13 @@
                 android:contentDescription="@null"
                 android:src="@drawable/bottom_shadow" />
 
+            <simpzan.android.lyrics.LyricsView
+                android:layout_marginLeft="30dp"
+                android:layout_marginRight="30dp"
+                android:visibility="gone"
+                android:id="@+id/lyrics_view"
+                android:layout_width="fill_parent"
+                android:layout_height="fill_parent"/>
             <FrameLayout
                 android:id="@+id/audio_player_pager_container"
                 android:layout_width="match_parent"
@@ -187,6 +196,7 @@
             android:max="1000"
             android:thumb="@null" />
 
+        <!--controls-->
         <LinearLayout
             android:id="@+id/audio_player_controlss"
             android:layout_width="match_parent"

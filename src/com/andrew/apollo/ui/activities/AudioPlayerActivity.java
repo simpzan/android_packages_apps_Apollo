@@ -38,6 +38,7 @@ import android.support.v4.app.FragmentActivity;
 import android.support.v4.view.ViewPager;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.view.MotionEvent;
 import android.view.View;
 import android.view.View.OnClickListener;
 import android.view.animation.AnimationUtils;
@@ -66,6 +67,7 @@ import com.andrew.apollo.widgets.PlayPauseButton;
 import com.andrew.apollo.widgets.RepeatButton;
 import com.andrew.apollo.widgets.RepeatingImageButton;
 import com.andrew.apollo.widgets.ShuffleButton;
+import simpzan.android.lyrics.LyricsView;
 
 import java.lang.ref.WeakReference;
 
@@ -540,6 +542,34 @@ public class AudioPlayerActivity extends FragmentActivity implements ServiceConn
         mNextButton.setRepeatListener(mFastForwardListener);
         // Update the progress
         mProgress.setOnSeekBarChangeListener(this);
+
+        initLyricsView();
+    }
+
+    LyricsView mLyricsView;
+    private void initLyricsView() {
+        mAlbumArt.setOnClickListener(new OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                mAlbumArt.setVisibility(View.GONE);
+                mLyricsView.setVisibility(View.VISIBLE);
+            }
+        });
+
+        mLyricsView = (LyricsView)findViewById(R.id.lyrics_view);
+        mLyricsView.setLyricsViewListener(new LyricsView.LyricsViewListener() {
+            @Override
+            public boolean onDoubleTap(MotionEvent e) {
+                return false;
+            }
+
+            @Override
+            public boolean onSingleTapConfirmed(MotionEvent e) {
+                mAlbumArt.setVisibility(View.VISIBLE);
+                mLyricsView.setVisibility(View.GONE);
+                return true;
+            }
+        });
     }
 
     /**
