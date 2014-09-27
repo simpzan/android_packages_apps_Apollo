@@ -105,14 +105,26 @@
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
                 android:layout_centerHorizontal="true"
-                android:scaleType="fitXY" />
+                android:scaleType="fitCenter" />
+
+            <simpzan.android.lyrics.LyricsView
+                    android:paddingLeft="15dp"
+                    android:paddingRight="15dp"
+                    android:visibility="gone"
+                    android:id="@+id/lyrics_view"
+                    android:layout_width="fill_parent"
+                    android:layout_height="fill_parent"/>
 
             <View
                 android:id="@+id/audio_player_footer_two"
                 android:layout_width="match_parent"
+                android:background="@android:color/black"
                 android:layout_height="wrap_content"
                 android:layout_alignParentBottom="true"
                 android:layout_below="@+id/audio_player_album_art" />
+
+
+
 
             <ImageView
                 android:layout_width="match_parent"
@@ -128,13 +140,8 @@
                 android:contentDescription="@null"
                 android:src="@drawable/bottom_shadow" />
 
-            <simpzan.android.lyrics.LyricsView
-                android:layout_marginLeft="30dp"
-                android:layout_marginRight="30dp"
-                android:visibility="gone"
-                android:id="@+id/lyrics_view"
-                android:layout_width="fill_parent"
-                android:layout_height="fill_parent"/>
+
+
             <FrameLayout
                 android:id="@+id/audio_player_pager_container"
                 android:layout_width="match_parent"
@@ -163,6 +170,7 @@
             </FrameLayout>
         </RelativeLayout>
 
+        <!-- time and seekbar -->
         <com.andrew.apollo.widgets.theme.ThemeableTextView
             android:id="@+id/audio_player_current_time"
             android:layout_width="@dimen/audio_player_time_width"

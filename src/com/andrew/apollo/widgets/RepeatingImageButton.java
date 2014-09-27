@@ -28,7 +28,7 @@ import com.andrew.apollo.widgets.theme.HoloSelector;
 
 /**
  * A {@link ImageButton} that will repeatedly call a 'listener' method as long
- * as the button is pressed, otherwise functions like a typecal
+ * as the button is pressed, otherwise functions like a typical
  * {@link ImageButton}
  */
 public class RepeatingImageButton extends ImageButton implements OnClickListener {

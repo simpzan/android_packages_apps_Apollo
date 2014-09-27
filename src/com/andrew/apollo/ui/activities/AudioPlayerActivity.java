@@ -36,6 +36,7 @@ import android.provider.MediaStore.Audio.Albums;
 import android.provider.MediaStore.Audio.Artists;
 import android.support.v4.app.FragmentActivity;
 import android.support.v4.view.ViewPager;
+import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.MotionEvent;
@@ -85,6 +86,7 @@ public class AudioPlayerActivity extends FragmentActivity implements ServiceConn
 
     // Message to refresh the time
     private static final int REFRESH_TIME = 1;
+    private static final String TAG = "AudioPlayerActivity";
 
     // The service token
     private ServiceToken mToken;
@@ -253,6 +255,7 @@ public class AudioPlayerActivity extends FragmentActivity implements ServiceConn
             mLastShortSeekEventTime = now;
             mPosOverride = MusicUtils.duration() * progress / 1000;
             MusicUtils.seek(mPosOverride);
+            sync();
             if (!mFromTouch) {
                 // refreshCurrentTime();
                 mPosOverride = -1;
@@ -456,6 +459,7 @@ public class AudioPlayerActivity extends FragmentActivity implements ServiceConn
         super.onStop();
         MusicUtils.notifyForegroundStateChanged(this, false);
         mImageFetcher.flush();
+
     }
 
     /**
@@ -552,16 +556,20 @@ public class AudioPlayerActivity extends FragmentActivity implements ServiceConn
 
     LyricsView mLyricsView;
     Lyrics mLyrics;
+    boolean mIsLyricsShowing = false;
     private void initLyricsView() {
         mAlbumArt.setOnClickListener(new OnClickListener() {
             @Override
             public void onClick(View view) {
 //                mAlbumArt.setVisibility(View.GONE);
                 mLyricsView.setVisibility(View.VISIBLE);
+                mIsLyricsShowing = true;
 
-                updateLyricsView();
-                int timespan = syncLyrics();
-                delayedRefresh(timespan);
+                if (mLyrics == null) {
+                    updateLyricsView();
+                } else {
+                    sync();
+                }
             }
         });
 
@@ -576,6 +584,7 @@ public class AudioPlayerActivity extends FragmentActivity implements ServiceConn
             public boolean onSingleTapConfirmed(MotionEvent e) {
 //                mAlbumArt.setVisibility(View.VISIBLE);
                 mLyricsView.setVisibility(View.GONE);
+                mIsLyricsShowing = false;
                 return true;
             }
         });
@@ -585,16 +594,25 @@ public class AudioPlayerActivity extends FragmentActivity implements ServiceConn
         public void handleMessage(Message msg) {
             super.handleMessage(msg);
 
-            int timespan = syncLyrics();
-            delayedRefresh(timespan);
+            sync();
         }
     };
 
-    private void delayedRefresh(int delay) {
-        if (delay < 0) return;
-        handler_.sendEmptyMessageDelayed(0, delay);
+    @Override
+    protected void onPause() {
+        super.onPause();
+        handler_.removeMessages(0);
     }
 
+    private void sync() {
+        int timespan = syncLyrics();
+        delayedRefresh(timespan);
+    }
+    private void delayedRefresh(int delay) {
+        if (delay < 0) return;
+        handler_.removeMessages(0);
+        handler_.sendEmptyMessageDelayed(0, delay);
+    }
     private int syncLyrics() {
         long pos = MusicUtils.position();
         Lyrics.SeekInfo info = mLyrics.findTimestamp((int)pos);
@@ -604,18 +622,21 @@ public class AudioPlayerActivity extends FragmentActivity implements ServiceConn
     }
 
     private void updateLyricsView() {
+        Log.d(TAG, "updateLyricsView");
+        if (!mIsLyricsShowing) return;
         String musicFile = MusicUtils.getFilePath();
         String lyricsFile = Utils.fileWithExtensionSubstituted(musicFile, "lrc");
         if (lyricsFile == null) return;
 
         mLyrics = new Lyrics();
-        try {
-            mLyrics.loadFromStream(new FileInputStream(lyricsFile));
+        if (mLyrics.loadFromFile(lyricsFile)) {
             mLyricsView.setTexts(mLyrics.getLyricLines());
-        } catch (FileNotFoundException e) {
-            e.printStackTrace();
         }
+
+        sync();
     }
+
+
 
     /**
      * Sets the track name, album name, and album art.
@@ -634,6 +655,7 @@ public class AudioPlayerActivity extends FragmentActivity implements ServiceConn
         // Update the current time
         queueNextRefresh(1);
 
+        updateLyricsView();
     }
 
     private long parseIdFromIntent(Intent intent, String longKey,
