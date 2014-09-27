@@ -67,8 +67,12 @@ import com.andrew.apollo.widgets.PlayPauseButton;
 import com.andrew.apollo.widgets.RepeatButton;
 import com.andrew.apollo.widgets.RepeatingImageButton;
 import com.andrew.apollo.widgets.ShuffleButton;
+import simpzan.android.lyrics.Lyrics;
 import simpzan.android.lyrics.LyricsView;
+import simpzan.android.lyrics.Utils;
 
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.lang.ref.WeakReference;
 
 /**
@@ -547,12 +551,17 @@ public class AudioPlayerActivity extends FragmentActivity implements ServiceConn
     }
 
     LyricsView mLyricsView;
+    Lyrics mLyrics;
     private void initLyricsView() {
         mAlbumArt.setOnClickListener(new OnClickListener() {
             @Override
             public void onClick(View view) {
-                mAlbumArt.setVisibility(View.GONE);
+//                mAlbumArt.setVisibility(View.GONE);
                 mLyricsView.setVisibility(View.VISIBLE);
+
+                updateLyricsView();
+                int timespan = syncLyrics();
+                delayedRefresh(timespan);
             }
         });
 
@@ -565,11 +574,47 @@ public class AudioPlayerActivity extends FragmentActivity implements ServiceConn
 
             @Override
             public boolean onSingleTapConfirmed(MotionEvent e) {
-                mAlbumArt.setVisibility(View.VISIBLE);
+//                mAlbumArt.setVisibility(View.VISIBLE);
                 mLyricsView.setVisibility(View.GONE);
                 return true;
             }
         });
+    }
+    private Handler handler_ = new Handler() {
+        @Override
+        public void handleMessage(Message msg) {
+            super.handleMessage(msg);
+
+            int timespan = syncLyrics();
+            delayedRefresh(timespan);
+        }
+    };
+
+    private void delayedRefresh(int delay) {
+        if (delay < 0) return;
+        handler_.sendEmptyMessageDelayed(0, delay);
+    }
+
+    private int syncLyrics() {
+        long pos = MusicUtils.position();
+        Lyrics.SeekInfo info = mLyrics.findTimestamp((int)pos);
+        mLyricsView.seekToIndex(info.index);
+
+        return info.remaining;
+    }
+
+    private void updateLyricsView() {
+        String musicFile = MusicUtils.getFilePath();
+        String lyricsFile = Utils.fileWithExtensionSubstituted(musicFile, "lrc");
+        if (lyricsFile == null) return;
+
+        mLyrics = new Lyrics();
+        try {
+            mLyrics.loadFromStream(new FileInputStream(lyricsFile));
+            mLyricsView.setTexts(mLyrics.getLyricLines());
+        } catch (FileNotFoundException e) {
+            e.printStackTrace();
+        }
     }
 
     /**
