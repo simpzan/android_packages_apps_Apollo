@@ -72,8 +72,6 @@ import simpzan.android.lyrics.Lyrics;
 import simpzan.android.lyrics.LyricsView;
 import simpzan.android.lyrics.Utils;
 
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.lang.ref.WeakReference;
 
 /**
@@ -255,7 +253,7 @@ public class AudioPlayerActivity extends FragmentActivity implements ServiceConn
             mLastShortSeekEventTime = now;
             mPosOverride = MusicUtils.duration() * progress / 1000;
             MusicUtils.seek(mPosOverride);
-            sync();
+            _sync();
             if (!mFromTouch) {
                 // refreshCurrentTime();
                 mPosOverride = -1;
@@ -551,25 +549,24 @@ public class AudioPlayerActivity extends FragmentActivity implements ServiceConn
         // Update the progress
         mProgress.setOnSeekBarChangeListener(this);
 
-        initLyricsView();
+        _initLyricsView();
     }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        _stopSync();
+    }
+
 
     LyricsView mLyricsView;
     Lyrics mLyrics;
     boolean mIsLyricsShowing = false;
-    private void initLyricsView() {
+    private void _initLyricsView() {
         mAlbumArt.setOnClickListener(new OnClickListener() {
             @Override
             public void onClick(View view) {
-//                mAlbumArt.setVisibility(View.GONE);
-                mLyricsView.setVisibility(View.VISIBLE);
-                mIsLyricsShowing = true;
-
-                if (mLyrics == null) {
-                    updateLyricsView();
-                } else {
-                    sync();
-                }
+                _showLyricsView();
             }
         });
 
@@ -582,9 +579,7 @@ public class AudioPlayerActivity extends FragmentActivity implements ServiceConn
 
             @Override
             public boolean onSingleTapConfirmed(MotionEvent e) {
-//                mAlbumArt.setVisibility(View.VISIBLE);
-                mLyricsView.setVisibility(View.GONE);
-                mIsLyricsShowing = false;
+                _hideLyricsView();
                 return true;
             }
         });
@@ -594,26 +589,27 @@ public class AudioPlayerActivity extends FragmentActivity implements ServiceConn
         public void handleMessage(Message msg) {
             super.handleMessage(msg);
 
-            sync();
+            _sync();
         }
     };
 
-    @Override
-    protected void onPause() {
-        super.onPause();
+
+
+    private void _stopSync() {
         handler_.removeMessages(0);
     }
+    private void _sync() {
+        if (!mIsLyricsShowing) return;
 
-    private void sync() {
-        int timespan = syncLyrics();
-        delayedRefresh(timespan);
+        int timespan = _syncLyrics();
+        _delayedRefresh(timespan);
     }
-    private void delayedRefresh(int delay) {
+    private void _delayedRefresh(int delay) {
         if (delay < 0) return;
         handler_.removeMessages(0);
         handler_.sendEmptyMessageDelayed(0, delay);
     }
-    private int syncLyrics() {
+    private int _syncLyrics() {
         long pos = MusicUtils.position();
         Lyrics.SeekInfo info = mLyrics.findTimestamp((int)pos);
         mLyricsView.seekToIndex(info.index);
@@ -621,22 +617,45 @@ public class AudioPlayerActivity extends FragmentActivity implements ServiceConn
         return info.remaining;
     }
 
-    private void updateLyricsView() {
-        Log.d(TAG, "updateLyricsView");
+    private void _showLyricsView() {
+        mLyricsView.setVisibility(View.VISIBLE);
+        mIsLyricsShowing = true;
+
+        _loadLyricsForCurrentSong();
+        _sync();
+    }
+    private void _hideLyricsView() {
+        mLyricsView.setVisibility(View.GONE);
+        mIsLyricsShowing = false;
+        _stopSync();
+    }
+
+    private void _loadLyricsForCurrentSong() {
+        Log.d(TAG, "_loadLyricsForCurrentSong");
         if (!mIsLyricsShowing) return;
+
         String musicFile = MusicUtils.getFilePath();
         String lyricsFile = Utils.fileWithExtensionSubstituted(musicFile, "lrc");
         if (lyricsFile == null) return;
 
+        if (mLyrics != null && mLyrics.getLrcFile().equals(lyricsFile))  return;
+
         mLyrics = new Lyrics();
         if (mLyrics.loadFromFile(lyricsFile)) {
+            Log.i(TAG, "loaded file:" + lyricsFile);
             mLyricsView.setTexts(mLyrics.getLyricLines());
         }
 
-        sync();
+        if (MusicUtils.isPlaying())  _sync();
     }
 
-
+    private void _updateLyricsViewPlaybackState() {
+        if (MusicUtils.isPlaying()) {
+            if (mIsLyricsShowing) _sync();
+        } else {
+            _stopSync();
+        }
+    }
 
     /**
      * Sets the track name, album name, and album art.
@@ -654,8 +673,6 @@ public class AudioPlayerActivity extends FragmentActivity implements ServiceConn
         mImageFetcher.loadCurrentArtwork(mAlbumArtSmall);
         // Update the current time
         queueNextRefresh(1);
-
-        updateLyricsView();
     }
 
     private long parseIdFromIntent(Intent intent, String longKey,
@@ -912,7 +929,7 @@ public class AudioPlayerActivity extends FragmentActivity implements ServiceConn
     /**
      * Called to hide the album art and show the queue
      */
-    public void hideAlbumArt() {
+    private void hideAlbumArt() {
         mPageContainer.setVisibility(View.VISIBLE);
         mQueueSwitch.setVisibility(View.GONE);
         mAlbumArtSmall.setVisibility(View.VISIBLE);
@@ -1060,14 +1077,18 @@ public class AudioPlayerActivity extends FragmentActivity implements ServiceConn
         @Override
         public void onReceive(final Context context, final Intent intent) {
             final String action = intent.getAction();
+            Log.i(TAG, "onReceive:" + action);
             if (action.equals(MusicPlaybackService.META_CHANGED)) {
                 // Current info
                 mReference.get().updateNowPlayingInfo();
                 // Update the favorites icon
                 mReference.get().invalidateOptionsMenu();
+                mReference.get()._loadLyricsForCurrentSong();
             } else if (action.equals(MusicPlaybackService.PLAYSTATE_CHANGED)) {
                 // Set the play and pause image
                 mReference.get().mPlayPauseButton.updateState();
+
+                mReference.get()._updateLyricsViewPlaybackState();
             } else if (action.equals(MusicPlaybackService.REPEATMODE_CHANGED)
                     || action.equals(MusicPlaybackService.SHUFFLEMODE_CHANGED)) {
                 // Set the repeat image
@@ -1076,6 +1097,9 @@ public class AudioPlayerActivity extends FragmentActivity implements ServiceConn
                 mReference.get().mShuffleButton.updateShuffleState();
             }
         }
+
     }
+
+
 
 }
